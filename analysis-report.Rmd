@@ -4,3 +4,12 @@ author: "Jose M. Perez Sanchez"
 output: html_document
 ---
 
+## Introduction
+
+## Exploratory Analysis
+
+## Predictive Model
+
+## Results
+
+## Conclusions
