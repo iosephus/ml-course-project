@@ -8,6 +8,19 @@ output: html_document
 
 ## Exploratory Analysis
 
+```{r, echo=FALSE,results='hide'}
+# URL for data download
+url.data.training <- paste0('https://', 
+                            'd396qusza40orc.cloudfront.net/', 
+                            'predmachlearn/pml-training.csv')
+
+url.data.testing <- paste0('https://', 
+                           'd396qusza40orc.cloudfront.net/', 
+                           'predmachlearn/pml-testing.csv')
+```
+
+
+
 ## Predictive Model
 
 ## Results
