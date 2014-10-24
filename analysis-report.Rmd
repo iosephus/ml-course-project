@@ -4,22 +4,51 @@ author: "Jose M. Perez Sanchez"
 output: html_document
 ---
 
+```{r, echo=FALSE,results='hide'}
+# URL for data download
+url.training <- paste0('https://', 
+                       'd396qusza40orc.cloudfront.net/', 
+                       'predmachlearn/pml-training.csv')
+
+url.testing <- paste0('https://', 
+                     'd396qusza40orc.cloudfront.net/', 
+                     'predmachlearn/pml-testing.csv')
+
+file.training <- 'pml-training.csv'
+file.testing <- 'pml-testing.csv'
+file.timestamp <- 'download_timestamp.txt'
+
+# Check if data file exists in working directory, otherwise donwload it.
+if (!file.exists(file.training) || !file.exists(file.testing) || !file.exists(file.timestamp)) {
+
+    # Create download timestamp
+    download.timestamp <- format(Sys.time(), tz="UTC", usetz=TRUE)
+
+    # Download files
+    if (Sys.info()['sysname'] == 'Windows') {
+        setInternet2(TRUE)
+    }
+    
+    download.file(url.training, destfile=file.training, method='auto')
+    download.file(url.testing, destfile=file.testing, method='auto')
+
+    # Save download timestamp
+    if (file.exists(file.training) && file.exists(file.testing)) {
+        cat(download.timestamp, file=file.timestamp)
+    }
+}
+```
+
+This report has been generated with data downloaded on `r readLines(file.timestamp)` from:
+
+```{r, echo=FALSE}
+print(url.training)
+print(url.testing)
+```
+
 ## Introduction
 
 ## Exploratory Analysis
-
-```{r, echo=FALSE,results='hide'}
-# URL for data download
-url.data.training <- paste0('https://', 
-                            'd396qusza40orc.cloudfront.net/', 
-                            'predmachlearn/pml-training.csv')
-
-url.data.testing <- paste0('https://', 
-                           'd396qusza40orc.cloudfront.net/', 
-                           'predmachlearn/pml-testing.csv')
-```
-
-
 
 ## Predictive Model
 
