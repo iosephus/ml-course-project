@@ -6,6 +6,12 @@ output: html_document
 
 ## Introduction
 
+This data analysis report uses a Human Activity Recognition (HAR) dataset and attempts to find a model able to predict quality of weigh lifting exercises from measures obtained from a set of sensors placed on certain parts of the bodies of the subjects and the dumbells used to execute the exercises.
+
+The original data set contains many variables, including metadata, the sensor data, and statistical indicators computed a posteriori using temporal rolling windows on the sensor data.
+
+Apart from this introductory section the report contains an Exploratory Analysis section in which the data is analysed and cleaned to only leave data that can be used in the predicition. The Predicive Model section present the construction of the model itself, including preprocessing (PCA) and the training of a Random Forest algorithm. The Random Forest model was selected because of the nature of the problem (categorical classification) and it's much better performance compared to other tree based algorithms. The last Results section presents the results of the prediction on the test data set.
+
 ## Exploratory Analysis
 
 ```{r, echo=FALSE,results='hide'}
@@ -91,15 +97,70 @@ We can see quickly that the first seven columns `r names(data.training[, selecto
 selector.predictors1 = selector.gooddata
 selector.predictors1[1:7] =  FALSE
 selector.predictors1[grep('classe', names(data.training))] = FALSE
-summary(data.training[, selector.predictors1])
 ```
 
+We end up with `r sum(selector.predictors1)` potential predictors. Now, we will perform dimensionality reduction using PCA before trying to train the model, we will keep only the principal components accounting for 90% of the variance.
 
-## Results
+```{r, cache=TRUE}
+library(caret)
+pc.obj <- preProcess(data.training[,selector.predictors1], method='pca', thresh=0.9)
+train.pc <- predict(pc.obj, data.training[,selector.predictors1])
+```
 
+The PCA analysis yields `r pc.obj$numComp` components that account for the desired variance. Now we will feed these components into a Random Forest algorithm:
+
+```{r, cache=TRUE}
+library(randomForest)
+fit.rf <- randomForest(data.training$classe ~ ., data=train.pc)
+confusionMatrix(data.training$classe, predict(fit.rf, train.pc))
+```
+
+As we can see the in sample accuracy is perfect (1). Let's run a cross validation to estimate the out of sample accuracy:
+
+```{r, cache=TRUE}
+cv <- rfcv(trainx=train.pc, trainy=data.training$classe)
+cv$error.cv
+```
+
+As we can see the expected out of sample error when using all the principal components is `r cv$error.cv[1]`.
+
+## Results and Discussion
+
+Let's load the testing data. It's important that we do this now and not before the training phase, since this guarantees that we haven't has access to the testing data during the training phase:
 
 ```{r}
-#data.testing <- read.csv(file.testing)
+data.testing <- read.csv(file.testing)
 ```
 
-## Conclusions
+The testing data should have the same structure as the training data:
+
+```{r}
+dim(data.testing)
+```
+
+They have the same dimension, let's check if the columns are the same:
+
+```{r}
+diff_col <- (1:ncol(data.training))[names(data.testing) != names(data.training)]
+diff_col
+```
+
+We can see that column 160 is not the same on both data sets.
+
+```{r}
+names(data.training)[diff_col]
+names(data.testing)[diff_col]
+```
+
+The column containing the outcome in the training data set has been replaced with the problem number for the project submission. We will limit ourselves to list our predictions here for each problem ID. Since only the outcome column has been replaced we can use the predictor selector we used for the training data unchanged. We will first compute the principal components for the test data set, *using the principal component object from the training data*, and then do the prediction:
+
+```{r, cache=TRUE}
+test.pc <- predict(pc.obj, data.testing[,selector.predictors1])
+test.predictions <- predict(fit.rf, test.pc)
+```
+
+Our prediction for the test set is the following:
+
+```{r}
+data.frame(problem_id=data.testing$problem_id, prediction=test.predictions)
+```
