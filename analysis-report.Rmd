@@ -4,6 +4,10 @@ author: "Jose M. Perez Sanchez"
 output: html_document
 ---
 
+## Introduction
+
+## Exploratory Analysis
+
 ```{r, echo=FALSE,results='hide'}
 # URL for data download
 url.training <- paste0('https://', 
@@ -46,12 +50,56 @@ print(url.training)
 print(url.testing)
 ```
 
-## Introduction
+Let's load the data, take a quick look at it's structure and check if it contains missing values:
 
-## Exploratory Analysis
+```{r}
+data.training <- read.csv(file.training)
+dim(data.training)
+mean(complete.cases(data.training))
+```
+
+The data frame has `r ncol(data.training)` columns and `r nrow(data.training)` rows. If we observe the output of `mean` applied to `complete.cases`, we realize that only around 2% of rows are complete (no NA values). Let's check the overall distribution of missing values per columns of the data frame, represented by NA values. We'll check also columns for empty non-NA values (""), since a summary of the data (omited for brevity) reveals there are many of them:
+
+```{r}
+hist(apply(data.training, 2, FUN=function (x) mean(is.na(x))))
+hist(apply(data.training, 2, FUN=function (x) mean(x == "")))
+```
+
+What we see is that columns fall into one of two categories: They either have most of their values missing (histogram bar near one) or they have mostly good data (histogram bar near zero). We can easily then select the columns that have mostly good data:
+
+```{r}
+selector.gooddata <- as.vector(apply(data.training, 2, FUN=function (x) mean(is.na(x)) < 0.5)) & as.vector(apply(data.training, 2, FUN=function (x) mean(x == "") < 0.5))
+mean(complete.cases(data.training[, selector.gooddata]))
+```
+We can see that we have no missing values in the selected columns (`mean` of `complete.cases`). Let's take a look at the data after this step:
+
+From the `ncol(data.training)` columns present in the data set, we have selected a subset of `r sum(selector.gooddata)` columns that contain potentially useful data.
+
+As we can see the first seven columns contain data that is not useful for prediction, such as the row index, user name, the date, etc. There are also some columns that do not seem to contain useful data 
 
 ## Predictive Model
 
+Let's take a look at the data including only the potentially useful data:
+
+```{r}
+summary(data.training[, selector.gooddata])
+```
+
+We can see quickly that the first seven columns `r names(data.training[, selector.gooddata])[1:7]` contain data that either is useful or should not be use for prediction. We will form an initial selector for potential predictors by setting these columns to `FALSE` in the good data predictor and also the outcome column.
+
+```{r}
+selector.predictors1 = selector.gooddata
+selector.predictors1[1:7] =  FALSE
+selector.predictors1[grep('classe', names(data.training))] = FALSE
+summary(data.training[, selector.predictors1])
+```
+
+
 ## Results
+
+
+```{r}
+#data.testing <- read.csv(file.testing)
+```
 
 ## Conclusions
