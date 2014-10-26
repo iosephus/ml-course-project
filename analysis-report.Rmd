@@ -1,0 +1,177 @@
+---
+title: "Machine Learning Course Project"
+author: "Jose M. Perez Sanchez"
+output: html_document
+---
+
+## Introduction
+
+This data analysis report uses a Human Activity Recognition (HAR) dataset and attempts to find a model able to predict quality of weigh lifting exercises from measures obtained from a set of sensors placed on certain parts of the bodies of the subjects and the dumbells used to execute the exercises.
+
+The original dataset contains many variables, including metadata, the sensor data, and statistical indicators computed a posteriori using temporal rolling windows on the sensor data.
+
+Apart from this Introduction section, the report contains an Exploratory Analysis section in which the data is analysed and cleaned to only leave data that can be used in the prediction. The Predictive Model section presents the construction of the model itself, including preprocessing (PCA) and the training of a Random Forest algorithm. The Random Forest model was selected because of the nature of the problem (categorical classification) and it's much better performance compared to other tree based algorithms (a simpler CART (rpart) model was tested with awful results but was not included in the report for brevity). The last Results section presents the results of the Random Forest prediction on the test dataset.
+
+Information about the HAR project that provided the data, the Weight Lifting Exercises Dataset and a paper published with their original work can be found [here](http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises).
+
+## Exploratory Analysis
+
+```{r, echo=FALSE,results='hide'}
+# URL for data download
+url.training <- paste0('https://', 
+                       'd396qusza40orc.cloudfront.net/', 
+                       'predmachlearn/pml-training.csv')
+
+url.testing <- paste0('https://', 
+                     'd396qusza40orc.cloudfront.net/', 
+                     'predmachlearn/pml-testing.csv')
+
+file.training <- 'pml-training.csv'
+file.testing <- 'pml-testing.csv'
+file.timestamp <- 'download_timestamp.txt'
+
+# Check if data file exists in working directory, otherwise donwload it.
+if (!file.exists(file.training) || !file.exists(file.testing) || !file.exists(file.timestamp)) {
+
+    # Create download timestamp
+    download.timestamp <- format(Sys.time(), tz="UTC", usetz=TRUE)
+
+    # Download files
+    if (Sys.info()['sysname'] == 'Windows') {
+        setInternet2(TRUE)
+    }
+    
+    download.file(url.training, destfile=file.training, method='auto')
+    download.file(url.testing, destfile=file.testing, method='auto')
+
+    # Save download timestamp
+    if (file.exists(file.training) && file.exists(file.testing)) {
+        cat(download.timestamp, file=file.timestamp)
+    }
+}
+```
+
+This report has been generated with data downloaded on `r readLines(file.timestamp)` from:
+
+```{r, echo=FALSE}
+print(url.training)
+print(url.testing)
+```
+
+Let's load the data, take a quick look at it's structure and check if it contains missing values:
+
+```{r}
+data.training <- read.csv(file.training)
+dim(data.training)
+mean(complete.cases(data.training))
+```
+
+The data frame has `r ncol(data.training)` columns and `r nrow(data.training)` rows. If we observe the output of `mean` applied to `complete.cases`, we realize that only around 2% of rows are complete (no NA values). Let's check the overall distribution of missing values per columns of the data frame, represented by NA values. We'll check also columns for empty non-NA values (""), since a summary of the data (omitted for brevity) reveals there are many of them:
+
+```{r}
+hist(apply(data.training, 2, FUN=function (x) mean(is.na(x))))
+hist(apply(data.training, 2, FUN=function (x) mean(x == "")))
+```
+
+What we see is that columns fall into one of two categories: They either have most of their values missing (histogram bar near one) or they have mostly good data (histogram bar near zero). We can easily then select the columns that have mostly good data:
+
+```{r}
+selector.gooddata <- as.vector(apply(data.training, 2, FUN=function (x) mean(is.na(x)) < 0.5)) & as.vector(apply(data.training, 2, FUN=function (x) mean(x == "") < 0.5))
+mean(complete.cases(data.training[, selector.gooddata]))
+```
+We can see that we have no missing values in the selected columns (`mean` of `complete.cases`). Let's take a look at the data after this step:
+
+From the `ncol(data.training)` columns present in the dataset, we have selected a subset of `r sum(selector.gooddata)` columns that contain potentially useful data.
+
+As we can see the first seven columns contain data that is not useful for prediction, such as the row index, user name, the date, etc. There are also some columns that do not seem to contain useful data 
+
+## Predictive Model
+
+Let's take a look at the data including only the potentially useful data:
+
+```{r}
+summary(data.training[, selector.gooddata])
+```
+
+We can see quickly that the first seven columns `r names(data.training[, selector.gooddata])[1:7]` contain data that either is useful or should not be use for prediction. We will form an initial selector for potential predictors by setting these columns to `FALSE` in the good data predictor and also the outcome column.
+
+```{r}
+selector.predictors1 = selector.gooddata
+selector.predictors1[1:7] =  FALSE
+selector.predictors1[grep('classe', names(data.training))] = FALSE
+```
+
+We end up with `r sum(selector.predictors1)` potential predictors. Now, we will perform dimensionality reduction using PCA before trying to train the model, we will keep only the principal components accounting for 90% of the variance.
+
+```{r, cache=TRUE}
+library(caret)
+pc.obj <- preProcess(data.training[,selector.predictors1], method='pca', thresh=0.9)
+train.pc <- predict(pc.obj, data.training[,selector.predictors1])
+```
+
+The PCA analysis yields `r pc.obj$numComp` components that account for the desired variance. Now we will feed these components into a Random Forest algorithm:
+
+```{r, cache=TRUE}
+library(randomForest)
+fit.rf <- randomForest(data.training$classe ~ ., data=train.pc)
+confusionMatrix(data.training$classe, predict(fit.rf, train.pc))
+```
+
+As we can see the in sample accuracy is perfect (1). Let's run a cross validation to estimate the out of sample accuracy:
+
+```{r, cache=TRUE}
+cv <- rfcv(trainx=train.pc, trainy=data.training$classe)
+cv$error.cv
+```
+
+As we can see the expected out of sample error when using all the principal components is `r cv$error.cv[1]` (`r round(100 * cv$error.cv[1], 1)` percent).
+
+## Results and Discussion
+
+Let's load the testing data. It's important that we do this now and not before the training phase, since this guarantees that we haven't had access to the testing data during the training phase:
+
+```{r}
+data.testing <- read.csv(file.testing)
+```
+
+The testing data should have the same structure as the training data:
+
+```{r}
+dim(data.testing)
+```
+
+They have the same dimension, let's check if the columns are the same:
+
+```{r}
+diff_col <- (1:ncol(data.training))[names(data.testing) != names(data.training)]
+diff_col
+```
+
+We can see that column 160 is not the same on both datasets.
+
+```{r}
+names(data.training)[diff_col]
+names(data.testing)[diff_col]
+```
+
+The column containing the outcome in the training dataset has been replaced with the problem number for the project submission. Since only the outcome column has been replaced, we can use the predictor selector we used for the training data unchanged. We will first compute the principal components for the test dataset, *using the principal component object from the training data*, and then do the prediction:
+
+```{r, cache=TRUE}
+test.pc <- predict(pc.obj, data.testing[,selector.predictors1])
+test.predictions <- predict(fit.rf, test.pc)
+```
+
+The variable `test.predictions` contains our predictions for the test data, which are not shown in the HTML to respect the submission deadline. Upon submission, a score of 19/20 was obtained with these predictions. Is this compatible with the expected error we got from cross validation? We can use the binomial distribution to compute what's the probability of getting at least one answer wrong with our out of sample accuracy:
+
+```{r}
+prob.1in20 <- 1 - dbinom(0, nrow(data.testing), cv$error.cv[1])
+prob.1in20
+```
+
+This yields a probability of `r round(100 * prob.1in20, 1)` percent, which shows is prefectly fine that we got one answer wrong (in twenty) with our expected out of sample error.
+
+```{r, echo=FALSE,results='hide'}
+results <- data.frame(problem_id=data.testing$problem_id, prediction=test.predictions)
+# This will save the files for submission
+apply(results, 1, function (x) {cat(x[['prediction']], file=paste0('problem_', x[['problem_id']], '.txt'))})
+```
