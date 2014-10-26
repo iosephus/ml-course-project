@@ -8,11 +8,11 @@ output: html_document
 
 This data analysis report uses a Human Activity Recognition (HAR) dataset and attempts to find a model able to predict quality of weigh lifting exercises from measures obtained from a set of sensors placed on certain parts of the bodies of the subjects and the dumbells used to execute the exercises.
 
-The original data set contains many variables, including metadata, the sensor data, and statistical indicators computed a posteriori using temporal rolling windows on the sensor data.
+The original dataset contains many variables, including metadata, the sensor data, and statistical indicators computed a posteriori using temporal rolling windows on the sensor data.
 
-Apart from this introductory section the report contains an Exploratory Analysis section in which the data is analysed and cleaned to only leave data that can be used in the predicition. The Predicive Model section present the construction of the model itself, including preprocessing (PCA) and the training of a Random Forest algorithm. The Random Forest model was selected because of the nature of the problem (categorical classification) and it's much better performance compared to other tree based algorithms. The last Results section presents the results of the prediction on the test data set.
+Apart from this Introduction section, the report contains an Exploratory Analysis section in which the data is analysed and cleaned to only leave data that can be used in the prediction. The Predictive Model section presents the construction of the model itself, including preprocessing (PCA) and the training of a Random Forest algorithm. The Random Forest model was selected because of the nature of the problem (categorical classification) and it's much better performance compared to other tree based algorithms (a simpler CART (rpart) model was tested with awful results but was not included in the report for brevity). The last Results section presents the results of the Random Forest prediction on the test dataset.
 
-Information about the HAR project that provided the data, the data set and a paper published with their work can be found [here](http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises)
+Information about the HAR project that provided the data, the Weight Lifting Exercises Dataset and a paper published with their original work can be found [here](http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises).
 
 ## Exploratory Analysis
 
@@ -66,7 +66,7 @@ dim(data.training)
 mean(complete.cases(data.training))
 ```
 
-The data frame has `r ncol(data.training)` columns and `r nrow(data.training)` rows. If we observe the output of `mean` applied to `complete.cases`, we realize that only around 2% of rows are complete (no NA values). Let's check the overall distribution of missing values per columns of the data frame, represented by NA values. We'll check also columns for empty non-NA values (""), since a summary of the data (omited for brevity) reveals there are many of them:
+The data frame has `r ncol(data.training)` columns and `r nrow(data.training)` rows. If we observe the output of `mean` applied to `complete.cases`, we realize that only around 2% of rows are complete (no NA values). Let's check the overall distribution of missing values per columns of the data frame, represented by NA values. We'll check also columns for empty non-NA values (""), since a summary of the data (omitted for brevity) reveals there are many of them:
 
 ```{r}
 hist(apply(data.training, 2, FUN=function (x) mean(is.na(x))))
@@ -81,7 +81,7 @@ mean(complete.cases(data.training[, selector.gooddata]))
 ```
 We can see that we have no missing values in the selected columns (`mean` of `complete.cases`). Let's take a look at the data after this step:
 
-From the `ncol(data.training)` columns present in the data set, we have selected a subset of `r sum(selector.gooddata)` columns that contain potentially useful data.
+From the `ncol(data.training)` columns present in the dataset, we have selected a subset of `r sum(selector.gooddata)` columns that contain potentially useful data.
 
 As we can see the first seven columns contain data that is not useful for prediction, such as the row index, user name, the date, etc. There are also some columns that do not seem to contain useful data 
 
@@ -128,7 +128,7 @@ As we can see the expected out of sample error when using all the principal comp
 
 ## Results and Discussion
 
-Let's load the testing data. It's important that we do this now and not before the training phase, since this guarantees that we haven't has access to the testing data during the training phase:
+Let's load the testing data. It's important that we do this now and not before the training phase, since this guarantees that we haven't had access to the testing data during the training phase:
 
 ```{r}
 data.testing <- read.csv(file.testing)
@@ -147,28 +147,28 @@ diff_col <- (1:ncol(data.training))[names(data.testing) != names(data.training)]
 diff_col
 ```
 
-We can see that column 160 is not the same on both data sets.
+We can see that column 160 is not the same on both datasets.
 
 ```{r}
 names(data.training)[diff_col]
 names(data.testing)[diff_col]
 ```
 
-The column containing the outcome in the training data set has been replaced with the problem number for the project submission. We will limit ourselves to list our predictions here for each problem ID. Since only the outcome column has been replaced we can use the predictor selector we used for the training data unchanged. We will first compute the principal components for the test data set, *using the principal component object from the training data*, and then do the prediction:
+The column containing the outcome in the training dataset has been replaced with the problem number for the project submission. Since only the outcome column has been replaced, we can use the predictor selector we used for the training data unchanged. We will first compute the principal components for the test dataset, *using the principal component object from the training data*, and then do the prediction:
 
 ```{r, cache=TRUE}
 test.pc <- predict(pc.obj, data.testing[,selector.predictors1])
 test.predictions <- predict(fit.rf, test.pc)
 ```
 
-The variable `test.predictions` contains our predictions for the test data, which are not shown in the HTML to respect the submission deadline. Upon submission a score of 19/20 was obtained with these predictions. Is this compatible with the expected error we got from cross validation? We can use the binomial distribution to compute what's the probability of getting at least one answer wrong with our out of sample accuracy:
+The variable `test.predictions` contains our predictions for the test data, which are not shown in the HTML to respect the submission deadline. Upon submission, a score of 19/20 was obtained with these predictions. Is this compatible with the expected error we got from cross validation? We can use the binomial distribution to compute what's the probability of getting at least one answer wrong with our out of sample accuracy:
 
 ```{r}
 prob.1in20 <- 1 - dbinom(0, nrow(data.testing), cv$error.cv[1])
 prob.1in20
 ```
 
-This yields a probability of `r round(100 * prob.1in20, 1)` percent, which shows is prefectly fine that we got one answer wrong with our expected out of sample error.
+This yields a probability of `r round(100 * prob.1in20, 1)` percent, which shows is prefectly fine that we got one answer wrong (in twenty) with our expected out of sample error.
 
 ```{r, echo=FALSE,results='hide'}
 results <- data.frame(problem_id=data.testing$problem_id, prediction=test.predictions)
