@@ -12,6 +12,8 @@ The original data set contains many variables, including metadata, the sensor da
 
 Apart from this introductory section the report contains an Exploratory Analysis section in which the data is analysed and cleaned to only leave data that can be used in the predicition. The Predicive Model section present the construction of the model itself, including preprocessing (PCA) and the training of a Random Forest algorithm. The Random Forest model was selected because of the nature of the problem (categorical classification) and it's much better performance compared to other tree based algorithms. The last Results section presents the results of the prediction on the test data set.
 
+Information about the HAR project that provided the data, the data set and a paper published with their work can be found [here](http://groupware.les.inf.puc-rio.br/har#weight_lifting_exercises)
+
 ## Exploratory Analysis
 
 ```{r, echo=FALSE,results='hide'}
@@ -122,7 +124,7 @@ cv <- rfcv(trainx=train.pc, trainy=data.training$classe)
 cv$error.cv
 ```
 
-As we can see the expected out of sample error when using all the principal components is `r cv$error.cv[1]`.
+As we can see the expected out of sample error when using all the principal components is `r cv$error.cv[1]` (`r round(100 * cv$error.cv[1], 1)` percent).
 
 ## Results and Discussion
 
@@ -159,8 +161,17 @@ test.pc <- predict(pc.obj, data.testing[,selector.predictors1])
 test.predictions <- predict(fit.rf, test.pc)
 ```
 
-Our prediction for the test set is the following:
+The variable `test.predictions` contains our predictions for the test data, which are not shown in the HTML to respect the submission deadline. Upon submission a score of 19/20 was obtained with these predictions. Is this compatible with the expected error we got from cross validation? We can use the binomial distribution to compute what's the probability of getting at least one answer wrong with our out of sample accuracy:
 
 ```{r}
-data.frame(problem_id=data.testing$problem_id, prediction=test.predictions)
+prob.1in20 <- 1 - dbinom(0, nrow(data.testing), cv$error.cv[1])
+prob.1in20
+```
+
+This yields a probability of `r round(100 * prob.1in20, 1)` percent, which shows is prefectly fine that we got one answer wrong with our expected out of sample error.
+
+```{r, echo=FALSE,results='hide'}
+results <- data.frame(problem_id=data.testing$problem_id, prediction=test.predictions)
+# This will save the files for submission
+apply(results, 1, function (x) {cat(x[['prediction']], file=paste0('problem_', x[['problem_id']], '.txt'))})
 ```
