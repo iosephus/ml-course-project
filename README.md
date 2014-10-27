@@ -10,5 +10,5 @@ The purpose of the assigment is to build a machine learning model and train it w
 
 The file *analysis-report.Rmd* contains the R Markdown performing and documenting the analysis.
 
-The file *analysis-report.html* contains the generated HTML. It can be viewed in the gh-pages branch [here](https://iosephus.github.io/ml-course-project). Alternatively it can be seen served from Amazon S3 [here](https://s3-us-west-2.amazonaws.com/coursera-iosephus/analysis-report.html).
+The file *analysis-report.html* contains the generated HTML. It can be viewed in the gh-pages branch [here](https://iosephus.github.io/ml-course-project/analysis-report.html).
 
